@@ -26,12 +26,59 @@ A step-by-step checklist to deploy a production-ready MERN (MongoDB, Express.js,
 
 ### **4. CI/CD Pipeline** (GitHub Actions)
 ```yaml
-name: CI/CD
-on: [push]
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev]
+
 jobs:
-  test:  # Run tests
-  deploy:  # Auto-deploy on `main` branch
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm run lint
+
+  build:
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm run build
+      - run: docker build -t myapp:${{ github.sha }} .
+
+  deploy-staging:
+    needs: build
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Staging
+        run: ./deploy-to-staging.sh
+
+  deploy-prod:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
     environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Production
+        run: ./deploy-to-prod.sh
+
 
 
 
